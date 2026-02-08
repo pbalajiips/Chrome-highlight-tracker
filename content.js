@@ -9,9 +9,6 @@ document.addEventListener('mouseup', () => {
     chrome.storage.local.get({ isPaused: false }, (result) => {
       if (result.isPaused) return;
 
-    // Save the highlight to storage immediately
-    saveHighlight(selectedText, window.location.href);
-
     // Attempt to highlight visually
     try {
       const range = selection.getRangeAt(0);
@@ -24,6 +21,9 @@ document.addEventListener('mouseup', () => {
       
       // This command wraps the selected text with our styled span
       range.surroundContents(span);
+
+      // Save the highlight to storage only if visual highlighting succeeds
+      saveHighlight(selectedText, window.location.href);
 
       // Optional: Clear the blue selection box so the yellow stands out
       selection.removeAllRanges();
