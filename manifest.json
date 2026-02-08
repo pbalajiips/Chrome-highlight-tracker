@@ -2,13 +2,23 @@
   "manifest_version": 3,
   "name": "Simple Highlight Tracker",
   "version": "1.0",
-  "description": "Highlight text on a page and track it in a popup.",
+  "description": "Highlight text on any webpage and track it for later review.",
   "permissions": [
     "storage",
     "activeTab"
   ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
   },
   "content_scripts": [
     {
