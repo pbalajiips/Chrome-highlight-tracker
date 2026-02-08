@@ -1,13 +1,35 @@
 // Restore saved highlights when the page loads
-restoreHighlights();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', restoreHighlights);
+} else {
+  restoreHighlights();
+}
+
+// Observe DOM changes to re-apply highlights on dynamic pages
+let observerTimeout;
+const observer = new MutationObserver((mutations) => {
+  // Avoid infinite loops: check if the mutation was caused by our own highlighting
+  const isOurMutation = mutations.some(m => 
+    Array.from(m.addedNodes).some(n => n.nodeType === 1 && n.classList.contains('my-extension-highlight'))
+  );
+  if (isOurMutation) return;
+
+  clearTimeout(observerTimeout);
+  observerTimeout = setTimeout(restoreHighlights, 1000);
+});
+
+if (document.body) {
+  observer.observe(document.body, { childList: true, subtree: true });
+}
 
 document.addEventListener('mouseup', () => {
   const selection = window.getSelection();
   const selectedText = selection.toString().trim();
 
   if (selectedText.length > 0) {
-    chrome.storage.local.get({ isPaused: false }, (result) => {
+    chrome.storage.local.get({ isPaused: false, userColor: '#ffff00' }, (result) => {
       if (result.isPaused) return;
+      const color = result.userColor;
 
     // Attempt to highlight visually
     try {
@@ -15,7 +37,7 @@ document.addEventListener('mouseup', () => {
       const span = document.createElement('span');
       
       // Styling the highlight
-      span.style.backgroundColor = '#ffff00'; // Yellow
+      span.style.backgroundColor = color;
       span.style.color = '#000000';
       span.className = 'my-extension-highlight';
       
@@ -23,7 +45,7 @@ document.addEventListener('mouseup', () => {
       range.surroundContents(span);
 
       // Save the highlight to storage only if visual highlighting succeeds
-      saveHighlight(selectedText, window.location.href);
+      saveHighlight(selectedText, window.location.href, color);
 
       // Optional: Clear the blue selection box so the yellow stands out
       selection.removeAllRanges();
@@ -36,13 +58,14 @@ document.addEventListener('mouseup', () => {
   }
 });
 
-function saveHighlight(text, url) {
+function saveHighlight(text, url, color) {
   chrome.storage.local.get({ highlights: [] }, (result) => {
     const highlights = result.highlights;
     
     highlights.push({
       text: text,
       url: url,
+      color: color,
       date: new Date().toLocaleString()
     });
 
@@ -62,12 +85,12 @@ function restoreHighlights() {
     const pageHighlights = highlights.filter(h => h.url === currentUrl);
 
     pageHighlights.forEach(h => {
-      findAndHighlight(h.text);
+      findAndHighlight(h.text, h.color);
     });
   });
 }
 
-function findAndHighlight(searchText) {
+function findAndHighlight(searchText, color) {
   if (!searchText) return;
 
   // Use a TreeWalker to efficiently find text nodes containing the search text
@@ -85,7 +108,7 @@ function findAndHighlight(searchText) {
       range.setEnd(node, index + searchText.length);
       
       const span = document.createElement('span');
-      span.style.backgroundColor = '#ffff00';
+      span.style.backgroundColor = color || '#ffff00'; // Default to yellow if no color saved
       span.style.color = '#000000';
       span.className = 'my-extension-highlight';
       

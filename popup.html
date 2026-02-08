@@ -11,6 +11,14 @@
       margin-bottom: 10px; 
       border-radius: 0 4px 4px 0;
     }
+    .controls {
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    input[type="color"] { border: none; width: 30px; height: 30px; cursor: pointer; padding: 0; background: none; }
     .text-content { font-size: 14px; color: #202124; margin-bottom: 5px; }
     .meta { font-size: 11px; color: #5f6368; display: flex; justify-content: space-between; }
     a { color: #1a73e8; text-decoration: none; }
@@ -24,11 +32,26 @@
     #togglePauseBtn:hover { background-color: #f9ab00; }
     #togglePauseBtn.resume-mode { background-color: #34a853; color: white; }
     #togglePauseBtn.resume-mode:hover { background-color: #2d8e47; }
+    .delete-btn {
+      float: right;
+      background: transparent;
+      color: #999;
+      border: none;
+      padding: 0 0 0 8px;
+      width: auto;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .delete-btn:hover { background: transparent; color: #d93025; }
     #list { max-height: 400px; overflow-y: auto; margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <h3>My Highlights</h3>
+  <div class="controls">
+    <label for="colorPicker">Highlight Color:</label>
+    <input type="color" id="colorPicker" value="#ffff00">
+  </div>
   <div id="list"></div>
   <button id="togglePauseBtn">Pause Tracking</button>
   <button id="clearBtn">Clear History</button>
