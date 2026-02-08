@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const listElement = document.getElementById('list');
   const clearBtn = document.getElementById('clearBtn');
   const togglePauseBtn = document.getElementById('togglePauseBtn');
+  const quickPauseBtn = document.getElementById('quickPauseBtn');
   const colorPicker = document.getElementById('colorPicker');
   const searchInput = document.getElementById('searchInput');
   const siteFilter = document.getElementById('siteFilter');
@@ -83,6 +84,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  if (quickPauseBtn) {
+    quickPauseBtn.addEventListener('click', () => {
+      chrome.storage.local.get({ isPaused: false }, (result) => {
+        const newState = !result.isPaused;
+        chrome.storage.local.set({ isPaused: newState }, () => {
+          updatePauseButton();
+        });
+      });
+    });
+  }
+
   togglePauseBtn.addEventListener('click', () => {
     chrome.storage.local.get({ isPaused: false }, (result) => {
       const newState = !result.isPaused;
@@ -97,9 +109,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (result.isPaused) {
         togglePauseBtn.textContent = "Resume Tracking";
         togglePauseBtn.classList.add('resume-mode');
+        if (quickPauseBtn) {
+          quickPauseBtn.textContent = "\u25B6";
+          quickPauseBtn.title = "Resume Tracking";
+          quickPauseBtn.style.color = "#137333";
+        }
       } else {
         togglePauseBtn.textContent = "Pause Tracking";
         togglePauseBtn.classList.remove('resume-mode');
+        if (quickPauseBtn) {
+          quickPauseBtn.textContent = "\u23F8";
+          quickPauseBtn.title = "Pause Tracking";
+          quickPauseBtn.style.color = "#5f6368";
+        }
       }
     });
   }
@@ -189,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         div.innerHTML = `
           <button class="delete-btn" title="Delete this highlight">&times;</button>
           <div class="text-content">"${escapeHtml(item.text)}"</div>
+          <textarea class="note-input" placeholder="Add a note...">${escapeHtml(item.note || '')}</textarea>
           <div class="meta">
             <span>${item.date}</span>
             <a href="${item.url}" target="_blank" title="${item.url}">Source</a>
@@ -197,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Single click to select
         div.addEventListener('click', (e) => {
-          if (e.target.closest('button') || e.target.closest('a')) return;
+          if (e.target.closest('button') || e.target.closest('a') || e.target.closest('textarea')) return;
           
           document.querySelectorAll('.highlight-item').forEach(el => el.classList.remove('selected'));
           div.classList.add('selected');
@@ -205,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Double click to route to source
         div.addEventListener('dblclick', (e) => {
-          if (e.target.closest('button') || e.target.closest('a')) return;
+          if (e.target.closest('button') || e.target.closest('a') || e.target.closest('textarea')) return;
           chrome.tabs.create({ url: item.url });
         });
 
@@ -215,8 +238,32 @@ document.addEventListener('DOMContentLoaded', () => {
           deleteHighlight(item);
         });
 
+        // Handle Note Saving
+        const noteInput = div.querySelector('.note-input');
+        noteInput.addEventListener('change', (e) => {
+          updateNote(item, e.target.value);
+        });
+        // Prevent clicks in textarea from triggering row selection
+        noteInput.addEventListener('click', (e) => e.stopPropagation());
+        noteInput.addEventListener('dblclick', (e) => e.stopPropagation());
+
         listElement.appendChild(div);
       });
+    });
+  }
+
+  function updateNote(itemToUpdate, newNote) {
+    chrome.storage.local.get({ highlights: [] }, (result) => {
+      const highlights = result.highlights;
+      // Find the item by matching properties
+      const index = highlights.findIndex(h => 
+        h.text === itemToUpdate.text && h.url === itemToUpdate.url && h.date === itemToUpdate.date
+      );
+      
+      if (index !== -1) {
+        highlights[index].note = newNote;
+        chrome.storage.local.set({ highlights: highlights });
+      }
     });
   }
 

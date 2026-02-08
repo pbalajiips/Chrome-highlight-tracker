@@ -27,6 +27,8 @@ document.addEventListener('mouseup', () => {
   const selectedText = selection.toString().trim();
 
   if (selectedText.length > 0) {
+    if (!chrome.runtime?.id) return;
+
     chrome.storage.local.get({ isPaused: false, userColor: '#ffff00' }, (result) => {
       if (result.isPaused) return;
       const color = result.userColor;
@@ -59,6 +61,8 @@ document.addEventListener('mouseup', () => {
 });
 
 function saveHighlight(text, url, color) {
+  if (!chrome.runtime?.id) return;
+
   chrome.storage.local.get({ highlights: [] }, (result) => {
     const highlights = result.highlights;
     
@@ -66,17 +70,28 @@ function saveHighlight(text, url, color) {
       text: text,
       url: url,
       color: color,
+      note: "",
       date: new Date().toLocaleString(),
       timestamp: Date.now()
     });
 
-    chrome.storage.local.set({ highlights: highlights }, () => {
-      console.log('Highlight saved!');
-    });
+    // Update badge count for this page
+    const pageHighlights = highlights.filter(h => h.url === url);
+    if (chrome.runtime?.id) {
+      chrome.runtime.sendMessage({ action: "updateBadge", count: pageHighlights.length });
+    }
+
+    if (chrome.runtime?.id) {
+      chrome.storage.local.set({ highlights: highlights }, () => {
+        // console.log('Highlight saved!');
+      });
+    }
   });
 }
 
 function restoreHighlights() {
+  if (!chrome.runtime?.id) return;
+
   chrome.storage.local.get({ highlights: [] }, (result) => {
     const highlights = result.highlights;
     if (!highlights) return;
@@ -84,6 +99,11 @@ function restoreHighlights() {
     const currentUrl = window.location.href;
     // Filter highlights that belong to this specific page
     const pageHighlights = highlights.filter(h => h.url === currentUrl);
+
+    // Update badge count
+    if (chrome.runtime?.id) {
+      chrome.runtime.sendMessage({ action: "updateBadge", count: pageHighlights.length });
+    }
 
     pageHighlights.forEach(h => {
       findAndHighlight(h.text, h.color);

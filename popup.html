@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <style>
     body { 
       width: 350px; 
@@ -24,13 +25,9 @@
       border-radius: 8px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.1);
       transition: box-shadow 0.2s ease;
-      cursor: pointer;
     }
     .highlight-item:hover {
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    .highlight-item.selected {
-      background-color: #e8f0fe;
     }
     .controls {
       margin-bottom: 16px;
@@ -82,6 +79,24 @@
       color: #3c4043; 
       margin-bottom: 8px; 
     }
+    .note-input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      padding: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 60px;
+      background-color: #fff8dc; /* Light yellow note background */
+    }
+    .note-input:focus {
+      outline: none;
+      border-color: #fbbc04;
+      background-color: #fff;
+    }
     .meta { 
       font-size: 11px; 
       color: #70757a; 
@@ -113,6 +128,8 @@
     #togglePauseBtn.resume-mode:hover { background-color: #ceead6; }
     #clearBtn { background-color: #fce8e6; color: #c5221f; }
     #clearBtn:hover { background-color: #fad2cf; }
+    #syncBtn { background-color: #1a73e8; color: white; }
+    #syncBtn:hover { background-color: #1557b0; }
 
     .delete-btn {
       float: right;
@@ -153,6 +170,29 @@
     .time-inputs input { flex: 1; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; font-size: 12px; }
     select.full-width { flex: 1; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; background: #fff; }
     .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; flex: 1; }
+    
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .header-row h3 { margin: 0; }
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 20px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #5f6368;
+      width: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-btn:hover { background-color: #f1f3f4; color: #202124; }
+
     .toggle-advanced {
       background: none;
       border: none;
@@ -165,7 +205,10 @@
   </style>
 </head>
 <body>
-  <h3>My Highlights</h3>
+  <div class="header-row">
+    <h3>My Highlights</h3>
+    <button id="quickPauseBtn" class="icon-btn" title="Pause Tracking">&#9208;</button>
+  </div>
   <div class="controls">
     <label for="colorPicker">Highlight Color:</label>
     <input type="color" id="colorPicker" value="#ffff00">
@@ -201,6 +244,7 @@
   <div id="list"></div>
   <div class="button-group">
     <button id="togglePauseBtn">Pause Tracking</button>
+    <!-- <button id="syncBtn">Sync to Cloud</button> -->
     <button id="clearBtn">Clear History</button>
   </div>
   <script src="popup.js"></script>

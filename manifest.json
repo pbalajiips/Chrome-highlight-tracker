@@ -2,11 +2,14 @@
   "manifest_version": 3,
   "name": "Simple Highlight Tracker",
   "version": "1.0",
-  "description": "Highlight text on any webpage and track it for later review.",
+  "description": "Highlight text and add personal notes on any webpage.",
   "permissions": [
     "storage",
     "activeTab"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
