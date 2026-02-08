@@ -24,9 +24,13 @@
       border-radius: 8px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.1);
       transition: box-shadow 0.2s ease;
+      cursor: pointer;
     }
     .highlight-item:hover {
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .highlight-item.selected {
+      background-color: #e8f0fe;
     }
     .controls {
       margin-bottom: 16px;
@@ -129,6 +133,35 @@
     /* Custom Scrollbar */
     #list::-webkit-scrollbar { width: 6px; }
     #list::-webkit-scrollbar-thumb { background-color: #dadce0; border-radius: 3px; }
+
+    .time-management {
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+      display: none; /* Hidden by default */
+    }
+    .time-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .time-row:last-child { margin-bottom: 0; }
+    .time-inputs { display: none; gap: 5px; margin-bottom: 8px; }
+    .time-inputs.visible { display: flex; }
+    .time-inputs input { flex: 1; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; font-size: 12px; }
+    select.full-width { flex: 1; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; background: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; flex: 1; }
+    .toggle-advanced {
+      background: none;
+      border: none;
+      color: #1a73e8;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -141,6 +174,30 @@
     <input type="text" id="searchInput" placeholder="Search keywords...">
     <select id="siteFilter"><option value="">All Sites</option></select>
   </div>
+  
+  <button id="toggleAdvancedBtn" class="toggle-advanced">Show Advanced Options &#9662;</button>
+  
+  <div class="time-management" id="advancedOptions">
+    <div class="time-row">
+      <select id="timeRange" class="full-width">
+        <option value="all">All Time</option>
+        <option value="last_hour">Last Hour</option>
+        <option value="last_24h">Last 24 Hours</option>
+        <option value="last_week">Last 7 Days</option>
+        <option value="range">Between Dates</option>
+        <option value="before">Before Date</option>
+      </select>
+    </div>
+    <div class="time-inputs" id="customDateInputs">
+      <input type="date" id="dateStart" placeholder="Start Date">
+      <input type="date" id="dateEnd" placeholder="End Date">
+    </div>
+    <div class="time-row">
+      <button id="applyTimeFilterBtn" class="btn-sm" style="background-color: #e8f0fe; color: #1967d2;">Show Matches</button>
+      <button id="deleteTimeFilterBtn" class="btn-sm" style="background-color: #fce8e6; color: #c5221f;">Delete Matches</button>
+    </div>
+  </div>
+
   <div id="list"></div>
   <div class="button-group">
     <button id="togglePauseBtn">Pause Tracking</button>

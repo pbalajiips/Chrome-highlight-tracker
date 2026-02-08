@@ -66,7 +66,8 @@ function saveHighlight(text, url, color) {
       text: text,
       url: url,
       color: color,
-      date: new Date().toLocaleString()
+      date: new Date().toLocaleString(),
+      timestamp: Date.now()
     });
 
     chrome.storage.local.set({ highlights: highlights }, () => {

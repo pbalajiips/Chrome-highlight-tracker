@@ -5,6 +5,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const colorPicker = document.getElementById('colorPicker');
   const searchInput = document.getElementById('searchInput');
   const siteFilter = document.getElementById('siteFilter');
+  
+  // Time Management Elements
+  const timeRange = document.getElementById('timeRange');
+  const customDateInputs = document.getElementById('customDateInputs');
+  const dateStart = document.getElementById('dateStart');
+  const dateEnd = document.getElementById('dateEnd');
+  const applyTimeFilterBtn = document.getElementById('applyTimeFilterBtn');
+  const deleteTimeFilterBtn = document.getElementById('deleteTimeFilterBtn');
+  const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn');
+  const advancedOptions = document.getElementById('advancedOptions');
+
+  let activeTimeFilter = { type: 'all' };
 
   loadHighlights();
   updatePauseButton();
@@ -18,6 +30,50 @@ document.addEventListener('DOMContentLoaded', () => {
   // Filter list when search or dropdown changes
   searchInput.addEventListener('input', loadHighlights);
   siteFilter.addEventListener('change', loadHighlights);
+
+  // Toggle Advanced Options
+  toggleAdvancedBtn.addEventListener('click', () => {
+    if (advancedOptions.style.display === 'block') {
+      advancedOptions.style.display = 'none';
+      toggleAdvancedBtn.innerHTML = 'Show Advanced Options &#9662;';
+    } else {
+      advancedOptions.style.display = 'block';
+      toggleAdvancedBtn.innerHTML = 'Hide Advanced Options &#9652;';
+    }
+  });
+
+  // Time Range UI Logic
+  timeRange.addEventListener('change', () => {
+    const val = timeRange.value;
+    if (val === 'range' || val === 'before') {
+      customDateInputs.classList.add('visible');
+      dateStart.style.display = (val === 'range') ? 'block' : 'none';
+    } else {
+      customDateInputs.classList.remove('visible');
+    }
+  });
+
+  applyTimeFilterBtn.addEventListener('click', () => {
+    activeTimeFilter = {
+      type: timeRange.value,
+      start: getLocalMidnightTime(dateStart.value),
+      end: getLocalMidnightTime(dateEnd.value)
+    };
+    loadHighlights();
+  });
+
+  deleteTimeFilterBtn.addEventListener('click', () => {
+    const filterConfig = {
+      type: timeRange.value,
+      start: getLocalMidnightTime(dateStart.value),
+      end: getLocalMidnightTime(dateEnd.value)
+    };
+
+    if (filterConfig.type === 'all' && !confirm("This will delete ALL highlights. Are you sure?")) return;
+    if (filterConfig.type !== 'all' && !confirm("Delete all highlights matching the selected time range?")) return;
+
+    performTimeBasedDelete(filterConfig);
+  });
 
   clearBtn.addEventListener('click', () => {
     if(confirm("Are you sure you want to delete all highlights?")) {
@@ -65,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // 2. Filter Data based on inputs
       const searchText = searchInput.value.toLowerCase();
       const selectedSite = siteFilter.value;
+      const now = Date.now();
 
       const filteredHighlights = highlights.filter(item => {
         const textMatch = item.text.toLowerCase().includes(searchText);
@@ -79,7 +136,36 @@ document.addEventListener('DOMContentLoaded', () => {
             siteMatch = new URL(item.url).hostname === selectedSite;
           } catch(e) { siteMatch = false; }
         }
-        return (textMatch || urlMatch) && siteMatch;
+
+        // Time Filtering
+        let timeMatch = true;
+        const itemTime = getItemTimestamp(item);
+        
+        switch (activeTimeFilter.type) {
+          case 'last_hour':
+            timeMatch = itemTime > (now - 3600000);
+            break;
+          case 'last_24h':
+            timeMatch = itemTime > (now - 86400000);
+            break;
+          case 'last_week':
+            timeMatch = itemTime > (now - 604800000);
+            break;
+          case 'range':
+            if (activeTimeFilter.start && activeTimeFilter.end) {
+              // End date should be inclusive of that day (23:59:59)
+              const endOfDay = activeTimeFilter.end + 86400000 - 1;
+              timeMatch = itemTime >= activeTimeFilter.start && itemTime <= endOfDay;
+            }
+            break;
+          case 'before':
+            if (activeTimeFilter.end) {
+              timeMatch = itemTime < activeTimeFilter.end;
+            }
+            break;
+        }
+
+        return (textMatch || urlMatch) && siteMatch && timeMatch;
       });
 
       if (filteredHighlights.length === 0) {
@@ -109,8 +195,23 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         `;
 
+        // Single click to select
+        div.addEventListener('click', (e) => {
+          if (e.target.closest('button') || e.target.closest('a')) return;
+          
+          document.querySelectorAll('.highlight-item').forEach(el => el.classList.remove('selected'));
+          div.classList.add('selected');
+        });
+
+        // Double click to route to source
+        div.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button') || e.target.closest('a')) return;
+          chrome.tabs.create({ url: item.url });
+        });
+
         // Add delete functionality
-        div.querySelector('.delete-btn').addEventListener('click', () => {
+        div.querySelector('.delete-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
           deleteHighlight(item);
         });
 
@@ -142,6 +243,53 @@ document.addEventListener('DOMContentLoaded', () => {
       if (site === currentSelection) option.selected = true;
       siteFilter.appendChild(option);
     });
+  }
+
+  function performTimeBasedDelete(filterConfig) {
+    chrome.storage.local.get({ highlights: [] }, (result) => {
+      const now = Date.now();
+      const keptHighlights = result.highlights.filter(item => {
+        const itemTime = getItemTimestamp(item);
+        let shouldDelete = false;
+
+        switch (filterConfig.type) {
+          case 'all': shouldDelete = true; break;
+          case 'last_hour': shouldDelete = itemTime > (now - 3600000); break;
+          case 'last_24h': shouldDelete = itemTime > (now - 86400000); break;
+          case 'last_week': shouldDelete = itemTime > (now - 604800000); break;
+          case 'range':
+            if (filterConfig.start && filterConfig.end) {
+              const endOfDay = filterConfig.end + 86400000 - 1;
+              shouldDelete = itemTime >= filterConfig.start && itemTime <= endOfDay;
+            }
+            break;
+          case 'before':
+            if (filterConfig.end) {
+              shouldDelete = itemTime < filterConfig.end;
+            }
+            break;
+        }
+        return !shouldDelete; // Keep items that should NOT be deleted
+      });
+
+      chrome.storage.local.set({ highlights: keptHighlights }, () => {
+        loadHighlights();
+        alert("Deletion complete.");
+      });
+    });
+  }
+
+  function getLocalMidnightTime(dateString) {
+    if (!dateString) return null;
+    const parts = dateString.split('-');
+    return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+  }
+
+  function getItemTimestamp(item) {
+    if (item.timestamp) return item.timestamp;
+    // Fallback for old items without timestamp
+    const d = new Date(item.date);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
   }
 
   function deleteHighlight(itemToDelete) {
