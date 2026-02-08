@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const clearBtn = document.getElementById('clearBtn');
   const togglePauseBtn = document.getElementById('togglePauseBtn');
   const colorPicker = document.getElementById('colorPicker');
+  const searchInput = document.getElementById('searchInput');
+  const siteFilter = document.getElementById('siteFilter');
 
   loadHighlights();
   updatePauseButton();
@@ -12,6 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
   colorPicker.addEventListener('change', (e) => {
     chrome.storage.local.set({ userColor: e.target.value });
   });
+
+  // Filter list when search or dropdown changes
+  searchInput.addEventListener('input', loadHighlights);
+  siteFilter.addEventListener('change', loadHighlights);
 
   clearBtn.addEventListener('click', () => {
     if(confirm("Are you sure you want to delete all highlights?")) {
@@ -52,14 +58,37 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.get({ highlights: [] }, (result) => {
       const highlights = result.highlights;
       listElement.innerHTML = '';
+      
+      // 1. Populate Site Filter Dropdown (only if needed to avoid resetting selection)
+      updateSiteFilterOptions(highlights);
 
-      if (highlights.length === 0) {
-        listElement.innerHTML = '<p style="text-align:center; color:#777;">No highlights yet.<br>Select text on any page!</p>';
+      // 2. Filter Data based on inputs
+      const searchText = searchInput.value.toLowerCase();
+      const selectedSite = siteFilter.value;
+
+      const filteredHighlights = highlights.filter(item => {
+        const textMatch = item.text.toLowerCase().includes(searchText);
+        let urlMatch = false;
+        try {
+          urlMatch = new URL(item.url).hostname.toLowerCase().includes(searchText);
+        } catch(e) {}
+
+        let siteMatch = true;
+        if (selectedSite) {
+          try {
+            siteMatch = new URL(item.url).hostname === selectedSite;
+          } catch(e) { siteMatch = false; }
+        }
+        return (textMatch || urlMatch) && siteMatch;
+      });
+
+      if (filteredHighlights.length === 0) {
+        listElement.innerHTML = '<p style="text-align:center; color:#777;">No matching highlights found.</p>';
         return;
       }
 
       // Show newest first
-      highlights.reverse().forEach(item => {
+      filteredHighlights.reverse().forEach(item => {
         const div = document.createElement('div');
         div.className = 'highlight-item';
         // Use the saved color for the border indicator
@@ -87,6 +116,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         listElement.appendChild(div);
       });
+    });
+  }
+
+  function updateSiteFilterOptions(highlights) {
+    // Get all unique hostnames
+    const sites = new Set();
+    highlights.forEach(h => {
+      try { sites.add(new URL(h.url).hostname); } catch(e) {}
+    });
+
+    // If the number of options hasn't changed (approx check), skip rebuilding to prevent UI flicker
+    // But strictly, we should rebuild to ensure correctness. We just need to preserve selection.
+    const currentSelection = siteFilter.value;
+    
+    // Clear existing options except the first "All Sites"
+    while (siteFilter.options.length > 1) {
+      siteFilter.remove(1);
+    }
+
+    Array.from(sites).sort().forEach(site => {
+      const option = document.createElement('option');
+      option.value = site;
+      option.textContent = site;
+      if (site === currentSelection) option.selected = true;
+      siteFilter.appendChild(option);
     });
   }
 

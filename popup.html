@@ -18,6 +18,22 @@
       justify-content: space-between;
       font-size: 13px;
     }
+    .filters {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    #searchInput {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #siteFilter {
+      max-width: 110px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
     input[type="color"] { border: none; width: 30px; height: 30px; cursor: pointer; padding: 0; background: none; }
     .text-content { font-size: 14px; color: #202124; margin-bottom: 5px; }
     .meta { font-size: 11px; color: #5f6368; display: flex; justify-content: space-between; }
@@ -51,6 +67,10 @@
   <div class="controls">
     <label for="colorPicker">Highlight Color:</label>
     <input type="color" id="colorPicker" value="#ffff00">
+  </div>
+  <div class="filters">
+    <input type="text" id="searchInput" placeholder="Search keywords...">
+    <select id="siteFilter"><option value="">All Sites</option></select>
   </div>
   <div id="list"></div>
   <button id="togglePauseBtn">Pause Tracking</button>
