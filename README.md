@@ -8,6 +8,7 @@ A Chrome Extension that allows you to highlight text on any webpage and track it
 - **Persistence**: Highlights are saved and automatically restored when you revisit the page.
 - **Popup Manager**: View a list of all your saved highlights, including the date and source URL.
 - **Pause/Resume**: Temporarily disable highlighting without uninstalling the extension.
+- **Backup & Restore**: Download all your highlight data to a file and restore it later.
 - **History Management**: Clear all saved highlights with a single click.
 
 ## Installation

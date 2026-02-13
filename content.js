@@ -36,15 +36,7 @@ document.addEventListener('mouseup', () => {
     // Attempt to highlight visually
     try {
       const range = selection.getRangeAt(0);
-      const span = document.createElement('span');
-      
-      // Styling the highlight
-      span.style.backgroundColor = color;
-      span.style.color = '#000000';
-      span.className = 'my-extension-highlight';
-      
-      // This command wraps the selected text with our styled span
-      range.surroundContents(span);
+      safeHighlightRange(range, color);
 
       // Save the highlight to storage only if visual highlighting succeeds
       saveHighlight(selectedText, window.location.href, color);
@@ -53,7 +45,6 @@ document.addEventListener('mouseup', () => {
       selection.removeAllRanges();
       
     } catch (error) {
-      // surroundContents fails if the selection crosses multiple HTML tags (like <div> to <p>)
       console.error("Highlighting failed: selection crosses complex boundaries.", error);
     }
     });
@@ -104,41 +95,96 @@ function restoreHighlights() {
     if (chrome.runtime?.id) {
       chrome.runtime.sendMessage({ action: "updateBadge", count: pageHighlights.length });
     }
+    
+    // Save scroll position and selection to restore after highlighting
+    // (window.find scrolls the page, so we need to reset it)
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const sel = window.getSelection();
+    const savedRanges = [];
+    for (let i = 0; i < sel.rangeCount; i++) {
+      savedRanges.push(sel.getRangeAt(i));
+    }
 
     pageHighlights.forEach(h => {
       findAndHighlight(h.text, h.color);
     });
+    
+    // Restore scroll and selection
+    window.scrollTo(scrollX, scrollY);
+    sel.removeAllRanges();
+    savedRanges.forEach(r => sel.addRange(r));
   });
 }
 
 function findAndHighlight(searchText, color) {
   if (!searchText) return;
 
-  // Use a TreeWalker to efficiently find text nodes containing the search text
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-  let node;
+  // Reset selection to start of document to ensure we search from the top
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  try {
+    const range = document.createRange();
+    range.setStart(document.body, 0);
+    range.collapse(true);
+    sel.addRange(range);
+  } catch (e) { return; }
 
-  while (node = walker.nextNode()) {
-    // Skip if this text is already highlighted (prevents highlighting the same text twice)
-    if (node.parentNode && node.parentNode.className === 'my-extension-highlight') continue;
-
-    const index = node.nodeValue.indexOf(searchText);
-    if (index >= 0) {
-      const range = document.createRange();
-      range.setStart(node, index);
-      range.setEnd(node, index + searchText.length);
-      
-      const span = document.createElement('span');
-      span.style.backgroundColor = color || '#ffff00'; // Default to yellow if no color saved
-      span.style.color = '#000000';
-      span.className = 'my-extension-highlight';
-      
-      try {
-        range.surroundContents(span);
-        return; // Stop after finding the first match for this specific saved text
-      } catch (e) {
-        // Continue searching if wrapping failed (e.g. complex structure)
-      }
+  // Use window.find() to search for text across multiple nodes (handles passages)
+  // Args: string, caseSensitive, backwards, wrapAround, wholeWord, searchInFrames, showDialog
+  while (window.find(searchText, false, false, false, false, false, false)) {
+    const range = sel.getRangeAt(0);
+    
+    // Check if already highlighted (avoid infinite loop or double highlighting)
+    const parent = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentNode;
+    if (parent.closest('.my-extension-highlight')) {
+      sel.collapseToEnd();
+      continue;
     }
+
+    try {
+      safeHighlightRange(range, color);
+    } catch (e) {
+      // Ignore errors if selection crosses complex boundaries
+    }
+    
+    // Move selection to end of found text to continue searching
+    sel.collapseToEnd();
+  }
+}
+
+function safeHighlightRange(range, color) {
+  const span = document.createElement('span');
+  span.style.backgroundColor = color || '#ffff00';
+  span.style.color = '#000000';
+  span.className = 'my-extension-highlight';
+
+  try {
+    // Try simple wrapping first
+    range.surroundContents(span);
+  } catch (e) {
+    // Fallback: Wrap individual text nodes for complex selections
+    let root = range.commonAncestorContainer;
+    if (root.nodeType === Node.TEXT_NODE) root = root.parentNode;
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+    });
+
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    nodes.forEach(node => {
+      const rng = document.createRange();
+      rng.selectNodeContents(node);
+      
+      if (node === range.startContainer) rng.setStart(node, range.startOffset);
+      if (node === range.endContainer) rng.setEnd(node, range.endOffset);
+      
+      if (!rng.collapsed) {
+        const s = span.cloneNode(true);
+        try { rng.surroundContents(s); } catch (err) {}
+      }
+    });
   }
 }

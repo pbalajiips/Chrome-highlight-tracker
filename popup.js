@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteTimeFilterBtn = document.getElementById('deleteTimeFilterBtn');
   const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn');
   const advancedOptions = document.getElementById('advancedOptions');
+  const backupBtn = document.getElementById('backupBtn');
+  const restoreInput = document.getElementById('restoreInput');
 
   let activeTimeFilter = { type: 'all' };
 
@@ -51,6 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
       dateStart.style.display = (val === 'range') ? 'block' : 'none';
     } else {
       customDateInputs.classList.remove('visible');
+
+      // Auto-apply filter for presets (all, last_hour, last_24h, last_week)
+      activeTimeFilter = { type: val };
+      loadHighlights();
     }
   });
 
@@ -75,6 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     performTimeBasedDelete(filterConfig);
   });
+
+  backupBtn.addEventListener('click', handleBackup);
+  restoreInput.addEventListener('change', handleRestore);
 
   clearBtn.addEventListener('click', () => {
     if(confirm("Are you sure you want to delete all highlights?")) {
@@ -146,11 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const now = Date.now();
 
       const filteredHighlights = highlights.filter(item => {
-        const textMatch = item.text.toLowerCase().includes(searchText);
-        let urlMatch = false;
-        try {
-          urlMatch = new URL(item.url).hostname.toLowerCase().includes(searchText);
-        } catch(e) {}
+        const searchMatch = checkSearchMatch(item, searchText);
 
         let siteMatch = true;
         if (selectedSite) {
@@ -187,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             break;
         }
 
-        return (textMatch || urlMatch) && siteMatch && timeMatch;
+        return searchMatch && siteMatch && timeMatch;
       });
 
       if (filteredHighlights.length === 0) {
@@ -326,6 +331,71 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function handleBackup() {
+    chrome.storage.local.get(null, (data) => {
+      if (chrome.runtime.lastError) {
+        console.error(chrome.runtime.lastError);
+        alert("Error backing up data.");
+        return;
+      }
+      const dataString = JSON.stringify(data, null, 2);
+      const blob = new Blob([dataString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      const date = new Date().toISOString().slice(0, 10);
+      a.download = `marknotes-backup-${date}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  function handleRestore(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!confirm("This will overwrite all current highlights and settings. Are you sure you want to restore?")) {
+      e.target.value = ''; // Reset file input
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        // Basic validation
+        if (typeof data !== 'object' || data === null || !Array.isArray(data.highlights)) {
+          throw new Error("Invalid backup file format. Must be a JSON object with a 'highlights' array.");
+        }
+
+        chrome.storage.local.clear(() => {
+          chrome.storage.local.set(data, () => {
+            if (chrome.runtime.lastError) {
+              throw new Error(chrome.runtime.lastError.message);
+            }
+            alert("Restore successful!");
+            loadHighlights();
+            updatePauseButton();
+            loadColor();
+          });
+        });
+      } catch (error) {
+        console.error("Error restoring data:", error);
+        alert(`Restore failed: ${error.message}`);
+      } finally {
+        e.target.value = ''; // Reset file input
+      }
+    };
+    reader.onerror = () => {
+      alert("Error reading file.");
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  }
+
   function getLocalMidnightTime(dateString) {
     if (!dateString) return null;
     const parts = dateString.split('-');
@@ -347,6 +417,30 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       chrome.storage.local.set({ highlights: newHighlights }, () => {
         loadHighlights(); // Reload the list
+      });
+    });
+  }
+
+  function checkSearchMatch(item, query) {
+    if (!query || !query.trim()) return true;
+    
+    // Support "OR" logic (split by ' or ')
+    const orGroups = query.split(' or ').filter(s => s.trim().length > 0);
+    if (orGroups.length === 0) return false;
+    
+    return orGroups.some(group => {
+      // Support "AND" logic (split by ' and ')
+      const andTerms = group.split(' and ').filter(s => s.trim().length > 0);
+      if (andTerms.length === 0) return false;
+      
+      return andTerms.every(term => {
+        const cleanTerm = term.trim();
+        const textMatch = item.text.toLowerCase().includes(cleanTerm);
+        let urlMatch = false;
+        try {
+          urlMatch = new URL(item.url).hostname.toLowerCase().includes(cleanTerm);
+        } catch(e) {}
+        return textMatch || urlMatch;
       });
     });
   }

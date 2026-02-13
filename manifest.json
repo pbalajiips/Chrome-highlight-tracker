@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Simple Highlight Tracker",
   "version": "1.0",
-  "description": "Highlight text and add personal notes on any webpage.",
+  "description": "Highlight text on any webpage, add personal notes, and organize your research with search and time-based filtering.",
   "permissions": [
     "storage",
     "activeTab"
