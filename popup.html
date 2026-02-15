@@ -73,6 +73,20 @@
       padding: 0; 
       background: none; 
     }
+    .toggle-row {
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .toggle-row input {
+      margin: 0;
+    }
     .text-content { 
       font-size: 14px; 
       line-height: 1.5;
@@ -212,6 +226,10 @@
   <div class="controls">
     <label for="colorPicker">Highlight Color:</label>
     <input type="color" id="colorPicker" value="#ffff00">
+  </div>
+  <div class="toggle-row">
+    <input type="checkbox" id="hideWhenPaused">
+    <label for="hideWhenPaused">Hide existing highlights when paused</label>
   </div>
   <div class="filters">
     <input type="text" id="searchInput" placeholder="Search keywords...">

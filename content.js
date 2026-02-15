@@ -83,7 +83,12 @@ function saveHighlight(text, url, color) {
 function restoreHighlights() {
   if (!chrome.runtime?.id) return;
 
-  chrome.storage.local.get({ highlights: [] }, (result) => {
+  chrome.storage.local.get({ highlights: [], isPaused: false, hideWhenPaused: false }, (result) => {
+    if (result.isPaused && result.hideWhenPaused) {
+      removeHighlights();
+      return;
+    }
+
     const highlights = result.highlights;
     if (!highlights) return;
 
@@ -188,3 +193,18 @@ function safeHighlightRange(range, color) {
     });
   }
 }
+
+function removeHighlights() {
+  const nodes = document.querySelectorAll('span.my-extension-highlight');
+  nodes.forEach(span => {
+    const textNode = document.createTextNode(span.textContent || '');
+    span.replaceWith(textNode);
+  });
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if (changes.isPaused || changes.hideWhenPaused) {
+    restoreHighlights();
+  }
+});

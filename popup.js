@@ -18,16 +18,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const advancedOptions = document.getElementById('advancedOptions');
   const backupBtn = document.getElementById('backupBtn');
   const restoreInput = document.getElementById('restoreInput');
+  const hideWhenPaused = document.getElementById('hideWhenPaused');
 
   let activeTimeFilter = { type: 'all' };
 
   loadHighlights();
   updatePauseButton();
   loadColor();
+  loadPauseVisibility();
 
   // Save color preference when changed
   colorPicker.addEventListener('change', (e) => {
     chrome.storage.local.set({ userColor: e.target.value });
+  });
+  
+  hideWhenPaused.addEventListener('change', (e) => {
+    chrome.storage.local.set({ hideWhenPaused: e.target.checked });
   });
 
   // Filter list when search or dropdown changes
@@ -138,6 +144,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadColor() {
     chrome.storage.local.get({ userColor: '#ffff00' }, (result) => {
       colorPicker.value = result.userColor;
+    });
+  }
+  
+  function loadPauseVisibility() {
+    chrome.storage.local.get({ hideWhenPaused: false }, (result) => {
+      hideWhenPaused.checked = result.hideWhenPaused;
     });
   }
 
